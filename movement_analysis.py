@@ -20,18 +20,64 @@ import pandas as pd
 import numpy as np
 from math import sqrt
 import os
+import site
+import urllib.request
 
 # -----------------------------------------
 # LOAD CASCADE CLASSIFIERS
 # -----------------------------------------
 
-face_cascade = cv2.CascadeClassifier(
-    cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-)
+def _load_cascade(name):
+    """Locate and load an OpenCV Haar cascade, with fallbacks for
+    environments where cv2.data.haarcascades is missing or incomplete
+    (common on Streamlit Cloud / some opencv-python-headless builds).
+    """
+    # 1) Project-local cascades/ folder (most reliable for hosting)
+    local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cascades", name)
+    if os.path.exists(local_path):
+        return cv2.CascadeClassifier(local_path)
 
-eye_cascade = cv2.CascadeClassifier(
-    cv2.data.haarcascades + 'haarcascade_eye.xml'
-)
+    # 2) Try cv2.data (modern OpenCV)
+    try:
+        path = os.path.join(cv2.data.haarcascades, name)
+        if os.path.exists(path):
+            return cv2.CascadeClassifier(path)
+    except AttributeError:
+        pass
+
+    # 3) Search common site-packages locations
+    search_roots = []
+    try:
+        search_roots.extend(site.getsitepackages())
+    except Exception:
+        pass
+    try:
+        search_roots.append(site.getusersitepackages())
+    except Exception:
+        pass
+    if hasattr(cv2, "__file__") and cv2.__file__:
+        search_roots.append(os.path.dirname(cv2.__file__))
+
+    for dir_ in search_roots:
+        for candidate in (
+            os.path.join(dir_, "cv2", "data", name),
+            os.path.join(dir_, "data", name),
+        ):
+            if os.path.exists(candidate):
+                return cv2.CascadeClassifier(candidate)
+
+    # 4) Last resort – download from OpenCV's GitHub
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    url = (
+        "https://raw.githubusercontent.com/opencv/opencv/"
+        f"master/data/haarcascades/{name}"
+    )
+    urllib.request.urlretrieve(url, local_path)
+    return cv2.CascadeClassifier(local_path)
+
+
+face_cascade = _load_cascade("haarcascade_frontalface_default.xml")
+eye_cascade = _load_cascade("haarcascade_eye.xml")
 
 # -----------------------------------------
 # HELPER FUNCTIONS
