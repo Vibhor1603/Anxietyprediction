@@ -1,152 +1,169 @@
-# Pediatric Movement Analysis & Anxiety Prediction
+# Anxiety Prediction App
 
-Upload a short video to extract movement metrics (blinks, head/body movement) and get an anxiety risk prediction.
+Upload a short video → get movement metrics + anxiety prediction.
 
-**GitHub:** https://github.com/Vibhor1603/Anxietyprediction
-
----
-
-## What this project does
-
-- Accepts a video upload (`.mp4`, `.avi`, `.mov`)
-- Analyzes face, eye blinks, head movement, and body movement with OpenCV
-- Saves metrics to a CSV file
-- Predicts anxiety level using a trained scikit-learn model
-
-**Tip:** Use a short video (10–30 seconds) when testing.
+Repo: https://github.com/Vibhor1603/Anxietyprediction
 
 ---
 
-## Tech stack (for developers)
+## What you need
 
-- **Language:** Python 3.11 (recommended; avoid 3.14)
-- **UI:** Streamlit
-- **Vision:** OpenCV (`opencv-python-headless`) + Haar cascades in `cascades/`
-- **Data:** pandas, numpy
-- **ML:** scikit-learn model in `anxiety_model.pkl`
-- **Main entry file:** `app.py`
-- **Core analysis:** `movement_analysis.py`
-- **Dependencies:** `requirements.txt`
-- **Optional hosting configs:** `render.yaml`, `Dockerfile`, `.streamlit/config.toml`
+- A computer (Mac or Windows)
+- Internet (first time only)
+- About 15 minutes
 
 ---
 
-## Important files
+## Step 1 — Download the project
 
-- `app.py` — Streamlit web app
-- `movement_analysis.py` — video analysis logic
-- `anxiety_model.pkl` — trained anxiety prediction model
-- `cascades/` — face and eye detection XML files
-- `requirements.txt` — Python packages to install
-- `TrainData.py` — model training script (research / offline use)
+1. Open https://github.com/Vibhor1603/Anxietyprediction in your browser
+2. Click the green **Code** button
+3. Click **Download ZIP**
+4. Unzip the file (Mac: double-click · Windows: right-click → **Extract All**)
+5. You should see a folder with `app.py` inside
 
 ---
 
-## Setup on a fresh computer
+## Step 2 — Install Python 3.11
 
-### 1. Get the code
+1. Open https://www.python.org/downloads/release/python-3119/
+2. Download the installer for your computer:
+   - **Mac:** macOS 64-bit universal2 installer
+   - **Windows:** Windows installer (64-bit)
+3. Run the installer
+4. **Windows only:** tick **Add python.exe to PATH** before clicking Install
+5. Finish install, then close and reopen any terminal windows
 
-- Open https://github.com/Vibhor1603/Anxietyprediction
-- Click **Code** → **Download ZIP**
-- Unzip the folder
-- Or with Git:
+---
+
+## Step 3 — Open Terminal in the project folder
+
+### Mac
+
+1. Press `Cmd + Space`, type **Terminal**, press Enter
+2. Copy this, paste into Terminal, press Enter  
+   (change the path if your folder is somewhere else)
 
 ```bash
-git clone https://github.com/Vibhor1603/Anxietyprediction.git
-cd Anxietyprediction
+cd ~/Downloads/Anxietyprediction-main
 ```
 
-### 2. Install Python 3.11
-
-- Download: https://www.python.org/downloads/release/python-3119/
-- **Windows:** run the installer and check **Add python.exe to PATH**
-- **Mac:** install the macOS `.pkg`, then reopen Terminal
-- Check version:
+3. Check you are in the right place — copy, paste, Enter:
 
 ```bash
-python --version
-# or
-python3 --version
+ls
 ```
 
-### 3. Create a virtual environment
+You should see `app.py` in the list.
 
-**Mac / Linux**
+### Windows
+
+1. Press the Windows key, type **cmd**, open **Command Prompt**
+2. Copy this, paste, press Enter  
+   (change the path if your folder is somewhere else)
+
+```bat
+cd %USERPROFILE%\Downloads\Anxietyprediction-main
+```
+
+3. Check you are in the right place — copy, paste, Enter:
+
+```bat
+dir
+```
+
+You should see `app.py` in the list.
+
+---
+
+## Step 4 — Create the environment (one time)
+
+### Mac — copy each line, paste, press Enter
 
 ```bash
-cd Anxietyprediction
-python3.11 -m venv venv
+python3 -m venv venv
+```
+
+```bash
 source venv/bin/activate
 ```
 
-**Windows (Command Prompt)**
-
-```bat
-cd Anxietyprediction
-python -m venv venv
-venv\Scripts\activate
-```
-
-You should see `(venv)` at the start of the terminal line.
-
-### 4. Install packages
+You should now see `(venv)` at the start of the line.
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 5. Run the app
+Wait until it finishes.
+
+### Windows — copy each line, paste, press Enter
+
+```bat
+python -m venv venv
+```
+
+```bat
+venv\Scripts\activate
+```
+
+You should now see `(venv)` at the start of the line.
+
+```bat
+pip install -r requirements.txt
+```
+
+Wait until it finishes.
+
+---
+
+## Step 5 — Start the app
+
+With `(venv)` still showing, copy, paste, Enter:
 
 ```bash
 streamlit run app.py
 ```
 
-- Open http://localhost:8501 in your browser
-- Upload a video → click **Analyze Video**
-- Stop the app later with `Ctrl + C` in the terminal
+1. Wait a few seconds
+2. Open your browser and go to: **http://localhost:8501**
+3. Click **Upload Video** → choose a short `.mp4` → click **Analyze Video**
 
-### 6. Next time (after first setup)
+To stop the app later: click the Terminal / Command Prompt window and press **Ctrl + C**.
 
-**Mac / Linux**
+---
+
+## Next time you want to run it
+
+Open Terminal / Command Prompt again, then:
+
+### Mac
 
 ```bash
-cd Anxietyprediction
+cd ~/Downloads/Anxietyprediction-main
 source venv/bin/activate
 streamlit run app.py
 ```
 
-**Windows**
+### Windows
 
 ```bat
-cd Anxietyprediction
+cd %USERPROFILE%\Downloads\Anxietyprediction-main
 venv\Scripts\activate
 streamlit run app.py
 ```
 
----
-
-## How to use the app
-
-- Click **Upload Video**
-- Choose an `.mp4` / `.avi` / `.mov` file
-- Click **Analyze Video**
-- View movement metrics and anxiety prediction
-- Optionally download the CSV
+Then open **http://localhost:8501**.
 
 ---
 
-## Common problems
+## For developers — what’s in this project
 
-- **`python` not found** — reinstall Python 3.11; on Windows enable **Add to PATH**
-- **`streamlit` not found** — activate `venv` first, then run again
-- **Wrong folder** — make sure `app.py` is in the current folder (`ls` on Mac, `dir` on Windows)
-- **Analysis slow** — use a shorter video; local computer is faster than free cloud hosting
-- **Missing model / cascades** — confirm `anxiety_model.pkl` and the `cascades/` folder exist
-
----
-
-## Hosting notes
-
-- Free cloud hosts (Render free tier) have **512MB RAM** and may crash on longer videos
-- Best results for real analysis: run **locally** on your computer
-- Live demo URL (if deployed): check your Render / Streamlit Cloud dashboard
+| Item | Details |
+|------|---------|
+| Language | Python 3.11 |
+| UI | Streamlit (`app.py`) |
+| Video analysis | OpenCV (`movement_analysis.py`, files in `cascades/`) |
+| ML model | scikit-learn (`anxiety_model.pkl`) |
+| Data libs | pandas, numpy |
+| Install list | `requirements.txt` |
+| Train script | `TrainData.py` |
