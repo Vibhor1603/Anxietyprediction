@@ -3,7 +3,7 @@ import tempfile
 import pandas as pd
 import pickle
 import os
-from movement_analysis import analyze_video
+from movement_analysis import analyze_video, cv2 as _cv2
 
 st.set_page_config(
     page_title="Pediatric Movement Analysis",
@@ -22,6 +22,25 @@ def load_anxiety_model():
 
 
 st.title("🎬 AI-Based Pediatric Movement Analysis")
+
+if _cv2 is None:
+    st.error(
+        "**OpenCV is not installed on this server.** "
+        "Streamlit Cloud is probably using Python 3.14, which breaks OpenCV."
+    )
+    st.markdown(
+        """
+**Fix (do this once):**
+1. Open [share.streamlit.io](https://share.streamlit.io)
+2. Delete this app
+3. Click **New app**
+4. Repo: `Vibhor1603/Anxietyprediction` · Branch: `main` · Main file: `app.py`
+5. Click **Advanced settings** → set **Python version to 3.11** → Save
+6. Click **Deploy**
+7. In the logs, confirm you see `Using Python 3.11` (not 3.14)
+"""
+    )
+    st.stop()
 
 st.write("""
 Upload a video and generate movement metrics with anxiety prediction.

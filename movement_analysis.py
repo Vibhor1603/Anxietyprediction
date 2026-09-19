@@ -15,13 +15,33 @@ Author: Research Prototype
 Modified: Works with OpenCV (compatible with all MediaPipe versions)
 """
 
-import cv2
 import pandas as pd
 import numpy as np
 from math import sqrt
 import os
 import site
 import urllib.request
+
+try:
+    import cv2
+except ImportError as exc:  # pragma: no cover - environment/setup issue
+    cv2 = None
+    _CV2_IMPORT_ERROR = exc
+else:
+    _CV2_IMPORT_ERROR = None
+
+
+def _require_cv2():
+    """Fail with a clear message if OpenCV is not installed."""
+    if cv2 is None:
+        raise ImportError(
+            "OpenCV (cv2) is not installed in this environment. "
+            "On Streamlit Cloud: App settings → Python version → 3.11 → Reboot. "
+            "Or delete the app and create it again with Advanced settings → Python 3.11. "
+            f"Original error: {_CV2_IMPORT_ERROR}"
+        )
+    return cv2
+
 
 # -----------------------------------------
 # LOAD CASCADE CLASSIFIERS
@@ -32,16 +52,18 @@ def _load_cascade(name):
     environments where cv2.data.haarcascades is missing or incomplete
     (common on Streamlit Cloud / some opencv-python-headless builds).
     """
+    cv2_mod = _require_cv2()
+
     # 1) Project-local cascades/ folder (most reliable for hosting)
     local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cascades", name)
     if os.path.exists(local_path):
-        return cv2.CascadeClassifier(local_path)
+        return cv2_mod.CascadeClassifier(local_path)
 
     # 2) Try cv2.data (modern OpenCV)
     try:
-        path = os.path.join(cv2.data.haarcascades, name)
+        path = os.path.join(cv2_mod.data.haarcascades, name)
         if os.path.exists(path):
-            return cv2.CascadeClassifier(path)
+            return cv2_mod.CascadeClassifier(path)
     except AttributeError:
         pass
 
@@ -55,8 +77,8 @@ def _load_cascade(name):
         search_roots.append(site.getusersitepackages())
     except Exception:
         pass
-    if hasattr(cv2, "__file__") and cv2.__file__:
-        search_roots.append(os.path.dirname(cv2.__file__))
+    if hasattr(cv2_mod, "__file__") and cv2_mod.__file__:
+        search_roots.append(os.path.dirname(cv2_mod.__file__))
 
     for dir_ in search_roots:
         for candidate in (
@@ -64,7 +86,7 @@ def _load_cascade(name):
             os.path.join(dir_, "data", name),
         ):
             if os.path.exists(candidate):
-                return cv2.CascadeClassifier(candidate)
+                return cv2_mod.CascadeClassifier(candidate)
 
     # 4) Last resort – download from OpenCV's GitHub
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -73,11 +95,21 @@ def _load_cascade(name):
         f"master/data/haarcascades/{name}"
     )
     urllib.request.urlretrieve(url, local_path)
-    return cv2.CascadeClassifier(local_path)
+    return cv2_mod.CascadeClassifier(local_path)
 
 
-face_cascade = _load_cascade("haarcascade_frontalface_default.xml")
-eye_cascade = _load_cascade("haarcascade_eye.xml")
+_face_cascade = None
+_eye_cascade = None
+
+
+def _get_cascades():
+    """Lazy-load cascades so the Streamlit UI can start even if OpenCV is missing."""
+    global _face_cascade, _eye_cascade
+    _require_cv2()
+    if _face_cascade is None:
+        _face_cascade = _load_cascade("haarcascade_frontalface_default.xml")
+        _eye_cascade = _load_cascade("haarcascade_eye.xml")
+    return _face_cascade, _eye_cascade
 
 # -----------------------------------------
 # HELPER FUNCTIONS
@@ -116,14 +148,17 @@ def analyze_video(video_path):
     # Check if video file exists
     if not os.path.exists(video_path):
         raise FileNotFoundError(f"Video file '{video_path}' not found.")
+
+    cv2_mod = _require_cv2()
+    face_cascade, eye_cascade = _get_cascades()
     
-    cap = cv2.VideoCapture(video_path)
+    cap = cv2_mod.VideoCapture(video_path)
     
     if not cap.isOpened():
         raise IOError(f"Cannot open video file '{video_path}'")
 
     # Read FPS once from the same capture (avoid opening the video twice)
-    actual_fps = cap.get(cv2.CAP_PROP_FPS)
+    actual_fps = cap.get(cv2_mod.CAP_PROP_FPS)
     fps = actual_fps if actual_fps and actual_fps > 0 else 30
     
     # -----------------------------------------
@@ -157,7 +192,7 @@ def analyze_video(video_path):
         if frame_count % 30 == 0:
             print(f"Frame {frame_count}...", end='\r')
         
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2_mod.cvtColor(frame, cv2_mod.COLOR_BGR2GRAY)
         # Release BGR frame early — only grayscale is needed after this
         del frame
         
@@ -232,8 +267,8 @@ def analyze_video(video_path):
     cap.release()
     # Safe cleanup for headless environments (Streamlit Cloud)
     try:
-        if hasattr(cv2, "destroyAllWindows"):
-            cv2.destroyAllWindows()
+        if hasattr(cv2_mod, "destroyAllWindows"):
+            cv2_mod.destroyAllWindows()
     except Exception:
         pass
     
