@@ -121,6 +121,10 @@ def analyze_video(video_path):
     
     if not cap.isOpened():
         raise IOError(f"Cannot open video file '{video_path}'")
+
+    # Read FPS once from the same capture (avoid opening the video twice)
+    actual_fps = cap.get(cv2.CAP_PROP_FPS)
+    fps = actual_fps if actual_fps and actual_fps > 0 else 30
     
     # -----------------------------------------
     # VARIABLES FOR METRICS
@@ -132,6 +136,7 @@ def analyze_video(video_path):
     head_movements = 0
     previous_face_center = None
     body_movements = 0
+    # Only last 3 face areas are used for body-movement variance
     face_area_history = []
     
     # -----------------------------------------
@@ -153,7 +158,8 @@ def analyze_video(video_path):
             print(f"Frame {frame_count}...", end='\r')
         
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        h, w = gray.shape
+        # Release BGR frame early — only grayscale is needed after this
+        del frame
         
         # ---------------------------------
         # FACE ANALYSIS
@@ -205,29 +211,20 @@ def analyze_video(video_path):
                         eye_blinks += 1
                 
                 previous_eye_distance = avg_eye_distance
-        
-        # Hand detection removed — keeping only head/face/body metrics
-        
-        # ---------------------------------
-        # BODY/FACIAL MOVEMENT (using face area variation)
-        # ---------------------------------
-        
-        if len(faces) > 0:
-            largest_face = max(faces, key=lambda f: f[2] * f[3])
-            x, y, fw, fh = largest_face
-            face_area = fw * fh
-            
-            face_area_history.append(face_area)
-            
-            # Detect movement based on face area changes
+
+            # BODY/FACIAL MOVEMENT (face area variation over last 3 frames)
+            face_area_history.append(fw * fh)
+            if len(face_area_history) > 3:
+                face_area_history.pop(0)
+
             if len(face_area_history) > 2:
-                recent_areas = face_area_history[-3:]
-                area_variance = np.var(recent_areas)
-                
-                # Movement detected if significant area variance
+                area_variance = np.var(face_area_history)
                 if area_variance > 5000:
                     body_movements += 1
-    
+
+        # Free per-frame buffers before the next iteration
+        del gray
+        
     # -----------------------------------------
     # RELEASE VIDEO
     # -----------------------------------------
@@ -243,16 +240,6 @@ def analyze_video(video_path):
     # -----------------------------------------
     # CALCULATE METRICS
     # -----------------------------------------
-    
-    fps = 30  # Assuming standard 30 fps
-    
-    # Get actual FPS from video
-    cap_check = cv2.VideoCapture(video_path)
-    actual_fps = cap_check.get(cv2.CAP_PROP_FPS)
-    cap_check.release()
-    
-    if actual_fps > 0:
-        fps = actual_fps
     
     duration_seconds = frame_count / fps
     duration_minutes = duration_seconds / 60

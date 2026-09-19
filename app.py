@@ -10,6 +10,17 @@ st.set_page_config(
     layout="wide"
 )
 
+
+@st.cache_resource
+def load_anxiety_model():
+    """Load the trained model once and reuse across reruns."""
+    model_path = "anxiety_model.pkl"
+    if not os.path.exists(model_path):
+        return None
+    with open(model_path, "rb") as f:
+        return pickle.load(f)
+
+
 st.title("🎬 AI-Based Pediatric Movement Analysis")
 
 st.write("""
@@ -27,13 +38,18 @@ if uploaded_file:
 
     if st.button("🔍 Analyze Video"):
 
+        temp_path = None
         with st.spinner("Analyzing..."):
 
-            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
                 tmp.write(uploaded_file.read())
                 temp_path = tmp.name
 
-            output_csv = analyze_video(temp_path)
+            try:
+                output_csv = analyze_video(temp_path)
+            finally:
+                if temp_path and os.path.exists(temp_path):
+                    os.remove(temp_path)
 
         st.success("✅ Analysis Complete")
 
@@ -61,13 +77,12 @@ if uploaded_file:
         st.subheader("📈 Detailed Results")
         st.dataframe(results_df, use_container_width=True)
         
-        # Anxiety prediction using the trained model
+        # Anxiety prediction using the trained model (loaded once via cache)
         try:
-            if os.path.exists("anxiety_model.pkl"):
-                with open("anxiety_model.pkl", "rb") as f:
-                    model = pickle.load(f)
-                
-                # Prepare features for prediction; ensure required columns exist
+            model = load_anxiety_model()
+            if model is None:
+                st.warning("Anxiety model file not found.")
+            else:
                 candidate_features = [
                     "Eye_Blinks",
                     "Head_Movements",
@@ -80,52 +95,33 @@ if uploaded_file:
                     st.warning("Not enough features available for anxiety prediction.")
                 else:
                     features = results_df[available_features].values
+                    expected = getattr(model, "n_features_in_", None)
+                    if expected is not None and expected != features.shape[1]:
+                        st.warning(
+                            f"Model expects {expected} features but "
+                            f"{features.shape[1]} available; skipping prediction."
+                        )
+                    else:
+                        anxiety_prediction = model.predict(features)[0]
+                        prediction_proba = model.predict_proba(features)[0]
 
-                    # Ensure model input dimension matches; otherwise skip prediction
-                    try:
-                        expected = getattr(model, 'n_features_in_', None)
-                        if expected is not None and expected != features.shape[1]:
-                            st.warning(f"Model expects {expected} features but {features.shape[1]} available; skipping prediction.")
+                        st.subheader("🧠 Anxiety Prediction")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Predicted Anxiety Level", f"{anxiety_prediction:.2f}")
+                        if len(prediction_proba) > 1:
+                            with col2:
+                                st.metric("Confidence", f"{max(prediction_proba)*100:.1f}%")
+
+                        if anxiety_prediction < 0.33:
+                            st.success("✅ Low Anxiety Level")
+                        elif anxiety_prediction < 0.67:
+                            st.warning("⚠️ Moderate Anxiety Level")
                         else:
-                            anxiety_prediction = model.predict(features)[0]
-                            prediction_proba = model.predict_proba(features)[0]
-                            st.subheader("🧠 Anxiety Prediction")
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.metric("Predicted Anxiety Level", f"{anxiety_prediction:.2f}")
-                            if len(prediction_proba) > 1:
-                                with col2:
-                                    st.metric("Confidence", f"{max(prediction_proba)*100:.1f}%")
-                            if anxiety_prediction < 0.33:
-                                st.success("✅ Low Anxiety Level")
-                            elif anxiety_prediction < 0.67:
-                                st.warning("⚠️ Moderate Anxiety Level")
-                            else:
-                                st.error("🔴 High Anxiety Level")
-                    except Exception as e:
-                        st.warning(f"Prediction failed: {e}")
-                
-                st.subheader("🧠 Anxiety Prediction")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Predicted Anxiety Level", f"{anxiety_prediction:.2f}")
-                
-                # Display confidence scores if available
-                if len(prediction_proba) > 1:
-                    with col2:
-                        st.metric("Confidence", f"{max(prediction_proba)*100:.1f}%")
-                
-                # Color-coded prediction
-                if anxiety_prediction < 0.33:
-                    st.success("✅ Low Anxiety Level")
-                elif anxiety_prediction < 0.67:
-                    st.warning("⚠️ Moderate Anxiety Level")
-                else:
-                    st.error("🔴 High Anxiety Level")
+                            st.error("🔴 High Anxiety Level")
         
         except Exception as e:
-            st.warning(f"Could not load anxiety model: {e}")
+            st.warning(f"Could not run anxiety prediction: {e}")
         
         # Download button
         with open(output_csv, "rb") as file:
