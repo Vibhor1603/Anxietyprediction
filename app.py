@@ -94,7 +94,7 @@ if uploaded_file:
         
         # Display full results table
         st.subheader("📈 Detailed Results")
-        st.dataframe(results_df, use_container_width=True)
+        st.dataframe(results_df, width="stretch")
         
         # Anxiety prediction using the trained model (loaded once via cache)
         try:
